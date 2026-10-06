@@ -1,0 +1,59 @@
+#!/bin/sh
+# connect - open a gterminal session on a serial device (Linux and macOS)
+#
+# Usage: ./connect [device]
+#
+#   device   path of the serial device, e.g. /dev/ttyACM0 or /dev/cu.usbmodem101.
+#            Default "select": choose from the devices present; a lone device
+#            is taken without asking.
+#
+# GFORTH names the gforth executable. Default: ../gforth/gforth next to this
+# repository if present, else gforth from PATH. When that executable lives in
+# a gforth source tree, GFORTHPATH is set to the tree so that unix/serial.fs
+# and test/ttester.fs are found; an installed gforth finds them on its own.
+#
+# Copyright (C) 2026 Ulrich Hoffmann
+# SPDX-License-Identifier: GPL-3.0-or-later
+
+baud=460800
+upload="use-ack-upload  50 to upload-char-delay  80 to key-char-delay"
+
+here=$(cd "$(dirname "$0")" && pwd)
+
+if [ -z "$GFORTH" ]; then
+  if [ -x "$here/../gforth/gforth" ]; then
+    GFORTH=$here/../gforth/gforth
+  else
+    GFORTH=gforth
+  fi
+fi
+
+exe=$(command -v "$GFORTH") || { echo "connect: gforth not found: $GFORTH" >&2; exit 1; }
+
+# Follow symlinks to the real executable, so a link in ~/bin still leads to
+# the source tree it points into.
+while [ -L "$exe" ]; do
+  link=$(readlink "$exe")
+  case $link in
+    /*) exe=$link ;;
+    *)  exe=$(dirname "$exe")/$link ;;
+  esac
+done
+
+gforth_dir=$(cd "$(dirname "$exe")" && pwd)
+if [ -f "$gforth_dir/unix/serial.fs" ]; then
+  GFORTHPATH=$gforth_dir
+  export GFORTHPATH
+fi
+
+device=${1:-select}
+if [ "$device" = select ]; then
+  start="select-connect"
+else
+  start="s\" $device\" to serial-port-name  connect"
+fi
+
+exec "$exe" "$here/gterminal.fs" \
+   -e "$baud this-os baud-for-os to baud-rate" \
+   -e "$upload" \
+   -e "$start" -e "bye"
