@@ -38,15 +38,25 @@ Write `./gterminal.fs`, not `gterminal.fs`: with `GFORTHPATH` set, Gforth search
 
 ### The `connect` script
 
-`./connect` does all of this on Linux and macOS alike:
+`connect` is a Forth script.  It loads `gterminal.fs` from its own directory, applies its settings and calls `select-connect`: a lone serial device is taken without asking, several are offered as a menu.  It runs the same way on Linux and macOS:
 
 ```sh
-./connect                        # choose from the devices present
-./connect /dev/cu.usbmodem101    # use this device
-GFORTH=~/src/gforth/gforth ./connect
+./connect                    # runs gforth from PATH
+/path/to/gforth ./connect    # runs this gforth
 ```
 
-With no argument (or `select`) it calls `select-connect`: a lone serial device is taken without asking, several are offered as a menu.  `GFORTH` names the gforth executable (default `../gforth/gforth` next to the repository, else `gforth` from `PATH`).  If that executable lives in a gforth source tree, `GFORTHPATH` is set to that tree automatically.  Baud rate (460800) and upload settings are set once at the top of the script.
+The script takes no arguments.  A gforth run from its source tree does not find `unix/serial.fs` on its own; export `GFORTHPATH` first:
+
+```sh
+export GFORTHPATH=/path/to/gforth
+```
+
+Every gterminal setting is listed in the script with a one-line explanation.  Commented-out lines show the defaults; remove the `\` to change one.  As shipped, the script uploads with ACK/NACK pacing (`use-ack-upload`, see [Upload pacing](#upload-pacing)) and uses shorter delays (`80 to key-char-delay`, `50 to upload-char-delay`).  To open a fixed device instead of choosing, set the device and replace `select-connect` with `connect`:
+
+```forth
+s" /dev/cu.usbmodem101" to serial-port-name
+connect
+```
 
 ## Configuration
 

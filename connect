@@ -1,59 +1,51 @@
-#!/bin/sh
-# connect - open a gterminal session on a serial device (Linux and macOS)
-#
-# Usage: ./connect [device]
-#
-#   device   path of the serial device, e.g. /dev/ttyACM0 or /dev/cu.usbmodem101.
-#            Default "select": choose from the devices present; a lone device
-#            is taken without asking.
-#
-# GFORTH names the gforth executable. Default: ../gforth/gforth next to this
-# repository if present, else gforth from PATH. When that executable lives in
-# a gforth source tree, GFORTHPATH is set to the tree so that unix/serial.fs
-# and test/ttester.fs are found; an installed gforth finds them on its own.
-#
-# Copyright (C) 2026 Ulrich Hoffmann
-# SPDX-License-Identifier: GPL-3.0-or-later
+#! /usr/bin/env gforth
+\ connect - open a gterminal session on a serial device
+\
+\ Every gterminal setting is listed below.  Commented-out lines show the
+\ default; remove the \ in front of a line to change it.  Active lines are the
+\ settings this script uses instead of the default.
 
-baud=460800
-upload="use-ack-upload  50 to upload-char-delay  80 to key-char-delay"
+include ./gterminal.fs   \ ./ = next to this script, found from any directory
 
-here=$(cd "$(dirname "$0")" && pwd)
+\ ---- Serial port ----
+\ s" /dev/cu.usbmodem101" to serial-port-name  \ device to open (macOS default: /dev/cu.usbserial)
+\ s" /dev/ttyACM0" to serial-port-name         \ device to open (Linux default: /dev/ttyACM0)
+\ 460800 this-os baud-for-os to baud-rate      \ line speed in bit/s; other rates: see linux-baud
+\ 256 to serial-drain-max                      \ max bytes shown from the port per loop turn
 
-if [ -z "$GFORTH" ]; then
-  if [ -x "$here/../gforth/gforth" ]; then
-    GFORTH=$here/../gforth/gforth
-  else
-    GFORTH=gforth
-  fi
-fi
+\ ---- Keyboard and paste ----
+\ 500 to key-char-delay                        \ default: µs pause after each pasted byte, 0 = full speed
+80 to key-char-delay                           \ µs pause after each pasted byte, 0 = full speed
+\ use-key-eol                                  \ default: pasted LF is sent as upload-eol
+\ use-key-raw                                  \ send pasted bytes untouched
+\ key-trace on                                 \ log every keyboard byte sent as k>hh (default: off)
 
-exe=$(command -v "$GFORTH") || { echo "connect: gforth not found: $GFORTH" >&2; exit 1; }
+\ ---- File upload (drag and drop, send-file) ----
+\ enable-drop-upload                           \ default: a dropped file path uploads the file
+\ disable-drop-upload                          \ a dropped path is sent as plain text
+\ use-chunked-upload                           \ default: 512-byte chunks, byte-exact, no handshake
+\ use-eol-upload                               \ chunks, line endings turned into upload-eol
+\ use ACK/NACK to upload files. make sure that in noForth you set 8007 to ok
+use-ack-upload                                 \ one line at a time, wait for the receiver's ACK
+\ 0 upload-chunk-delay !                       \ ms pause between chunks (chunked/eol upload)
+\ 500 to upload-char-delay                     \ default: µs pause after each byte of a line (ACK upload)
+50 to upload-char-delay                        \ µs pause after each byte of a line (ACK upload)
+\ 6  to upload-ack-char                        \ byte the receiver sends after a line is processed OK
+\ 21 to upload-nack-char                       \ byte the receiver sends when a line raised an error
+\ 13 to upload-eol                             \ line terminator appended to each line sent (CR)
+\ 10000 to upload-ack-timeout                  \ ms of silence before giving up on an ACK, 0 = forever
+\ upload-trace on                              \ log upload bytes as >hh sent, <hh received (default: off)
 
-# Follow symlinks to the real executable, so a link in ~/bin still leads to
-# the source tree it points into.
-while [ -L "$exe" ]; do
-  link=$(readlink "$exe")
-  case $link in
-    /*) exe=$link ;;
-    *)  exe=$(dirname "$exe")/$link ;;
-  esac
-done
+\ ---- Opening and reconnecting ----
+\ 5   to open-retry-max                        \ open attempts before an open error is reported
+\ 200 to open-retry-delay-ms                   \ ms between open attempts
+\ 3 to reconnect-max-tries                     \ retries of a lost port before the chooser is offered
+\ 1000 to reconnect-delay-ms                   \ ms between reconnect attempts
+\ 500 to device-poll-ms                        \ ms between rescans of /dev while waiting for a device
+\ 5000 to device-wait-ms                       \ ms to wait for a lost device before giving up
 
-gforth_dir=$(cd "$(dirname "$exe")" && pwd)
-if [ -f "$gforth_dir/unix/serial.fs" ]; then
-  GFORTHPATH=$gforth_dir
-  export GFORTHPATH
-fi
+\ ---- Start ----
+\ connect                                      \ open serial-port-name directly
+select-connect                                 \ choose from the devices present; a lone one is taken
 
-device=${1:-select}
-if [ "$device" = select ]; then
-  start="select-connect"
-else
-  start="s\" $device\" to serial-port-name  connect"
-fi
-
-exec "$exe" "$here/gterminal.fs" \
-   -e "$baud this-os baud-for-os to baud-rate" \
-   -e "$upload" \
-   -e "$start" -e "bye"
+bye

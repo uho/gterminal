@@ -21,7 +21,7 @@ require unix/serial.fs
 
 \ Version of gterminal, semantic versioning (major.minor.patch).  A public
 \ release is tagged v<version>; tools/sync-dist reads the version from here.
-: gterminal-version ( -- c-addr u )  s" 1.0.0" ;
+: gterminal-version ( -- c-addr u )  s" 1.1.0" ;
 
 \ Print the boot banner: program name, version and how to use it.
 : .banner ( -- )
@@ -1415,7 +1415,7 @@ true constant WANT-TESTS
 
 WANT-TESTS [if]
 \ ============================================================
-\ Tests — run with: gforth gterminal.fs
+\ Tests — run with: gforth ./gterminal.fs
 \ ============================================================
 
 require test/ttester.fs
@@ -3015,11 +3015,11 @@ T{ ' connect-session is run-session
 
 TESTING ------ version and banner ------
 
-TESTING the version is the released 1.0.0
-T{ gterminal-version s" 1.0.0" compare -> 0 }T
+TESTING the version is the released 1.1.0
+T{ gterminal-version s" 1.1.0" compare -> 0 }T
 
 TESTING the boot banner names the program and its version
-T{ ' .banner >string-execute  s" gterminal 1.0.0 " string-prefix? -> true }T
+T{ ' .banner >string-execute  s" gterminal 1.1.0 " string-prefix? -> true }T
 T{ ' .banner >string-execute  s" press ESC twice" search nip nip -> true }T
 
 
